@@ -8,4 +8,4 @@ streamlit
 streamlit_extras
 matplotlib
 seaborn
-phyton-telegram-bot==20.5
+phyton-telegram-bot
