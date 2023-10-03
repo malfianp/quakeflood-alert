@@ -8,4 +8,5 @@ streamlit
 streamlit_extras
 matplotlib
 seaborn
-phyton-telegram-bot
+httpx~=0.24.1 
+python-telegram-bot==20.5
