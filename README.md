@@ -1,4 +1,4 @@
-# QuakeFlood Alert 🌊🌏🚨
+# QuakeFlood Alert 🌊🌏⚠️
 This application is designed to help you monitor, predict floods, and classify earthquakes.
 
 ## 🌟 Features
