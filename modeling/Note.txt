@@ -1,0 +1,13 @@
+File rename:
+
+# dataset
+flood-simulasi.pkl -> data_simulasi_banjir.pkl
+
+# scaler
+scaler_X_klasifikasi_flood-A2.save -> scaler_X_klasifikasi_banjir.save
+scaler_X_prediksi_flood-A2.save -> scaler_X_prediksi_banjir.save
+scaler_y_prediksi_flood-A2.save -> scaler_y_prediksi_banjir.save
+
+# model
+model_klasifikasi_flood-A2.h5 -> model_klasifikasi_banjir.h5
+model_prediksi_flood-A2.h5 -> model_prediksi_banjir.h5
