@@ -21,7 +21,7 @@ with col1:
     st.image("image/flood.gif")
     col11,col12,col13=st.columns(3)
     col12.subheader("Flood")
-    st.write("<center>Classify flood risk levels and predict water levels for the next 6 hours based on water level and weather data from the past two days</center>",
+    st.write("<center>Predict water levels for the next 6 hours based on water level and weather data from the last 24 hours</center>",
              unsafe_allow_html=True) 
 with col2:
     st.image("image/earthquake.gif")
