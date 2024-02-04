@@ -48,7 +48,7 @@ def download_csv(data_df, name):
 def data_plot_tab2(history, pred):
     # history
     data_history = history.reset_index()
-    data_history['index'] = data_history['index'] - 287
+    data_history['index'] = data_history['index'] - 143
     data_history = data_history.set_index('index')
     data_plot_X = data_history[['height (cm)']]
     data_plot_X = data_plot_X.rename(columns = {'height (cm)':'height_history (cm)'})
@@ -69,22 +69,20 @@ def load_data_banjir():
 
 @st.cache_resource(ttl=3600)
 def load_scaler_banjir():
-     scaler_X_klas = joblib.load('scaler/scaler_X_klasifikasi_banjir.save')
      scaler_X_pred = joblib.load('scaler/scaler_X_prediksi_banjir.save') 
      scaler_y_pred = joblib.load('scaler/scaler_y_prediksi_banjir.save') 
-     return scaler_X_klas, scaler_X_pred, scaler_y_pred
+     return  scaler_X_pred, scaler_y_pred
 
 @st.cache_resource(ttl=3600)
 def load_model_banjir():
-     model_klas = load_model('model/model_klasifikasi_banjir.h5')
      model_pred = load_model('model/model_prediksi_banjir.h5')
-     return model_klas, model_pred
+     return  model_pred
 
 
 # load data, scaler, model
 data_banjir = load_data_banjir()
-scaler_X_klasifikasi, scaler_X_prediksi, scaler_y_prediksi = load_scaler_banjir()
-model_klasifikasi_banjir, model_prediksi_banjir = load_model_banjir()
+scaler_X_prediksi, scaler_y_prediksi = load_scaler_banjir()
+model_prediksi_banjir = load_model_banjir()
 
 # title
 st.title("Flood")
@@ -112,9 +110,7 @@ with tab1:
     data_metric = data_tab1[['datetime','height (cm)']].head(2)
     data_metric = data_metric.rename(columns={'datetime':'date',
                                              'height (cm)':'height'})
-    data_metric = klasifikasi_banjir(X=data_metric,        # get status
-                                     scaler_X=scaler_X_klasifikasi,
-                                     model=model_klasifikasi_banjir)
+    data_metric = klasifikasi_banjir(X=data_metric)
     
     metric1_value = data_metric.height[0].round(2)
     metric1_delta = (data_metric.height[0] - data_metric.height[1]).round(2)
@@ -211,9 +207,7 @@ with tab2:
         X_klasifikasi = data_banjir.loc[data_banjir['datetime'] == datetime2].reset_index(drop=True)
         X_klasifikasi = X_klasifikasi[['datetime','height (cm)']].rename(columns={'datetime':'date',
                                                                                   'height (cm)':'height'})
-        y_klasifikasi = klasifikasi_banjir(X=X_klasifikasi,
-                                 scaler_X=scaler_X_klasifikasi,
-                                 model=model_klasifikasi_banjir)
+        y_klasifikasi = klasifikasi_banjir(X=X_klasifikasi)
         # prediksi
         X_prediksi = get_X_prediksi(data=data_banjir, 
                                 date=datetime2)
@@ -223,9 +217,7 @@ with tab2:
                             scaler_X=scaler_X_prediksi,
                             scaler_y=scaler_y_prediksi,
                             model=model_prediksi_banjir)
-        y_pred_status = klasifikasi_banjir(X=y_pred,
-                                    scaler_X=scaler_X_klasifikasi,
-                                    model=model_klasifikasi_banjir)
+        y_pred_status = klasifikasi_banjir(X=y_pred)
         y_pred_status = y_pred_status.rename(columns = {'height':'height_pred (cm)'})
 
         # info
@@ -245,26 +237,26 @@ with tab2:
                                                                     pred=y_pred_status)
 
             fig2 = plt.figure(figsize=(10, 4))
-            plt.fill_between(x=range(-287,1),y1=data_plot2['height_history (cm)'].iloc[0:288], color='dimgray', alpha=0.4)
-            plt.plot(data_plot2['height_history (cm)'].iloc[0:288], color='dimgray', alpha=1, linewidth=3, label='height history')
+            plt.fill_between(x=range(-143,1),y1=data_plot2['height_history (cm)'].iloc[0:144], color='dimgray', alpha=0.4)
+            plt.plot(data_plot2['height_history (cm)'].iloc[0:144], color='dimgray', alpha=1, linewidth=3, label='height history')
 
-            plt.fill_between(x=range(1,37),y1=data_plot2['height_true (cm)'].iloc[288:], color='cornflowerblue', alpha=0.4)
-            plt.plot(data_plot2['height_true (cm)'].iloc[288:], color='cornflowerblue', alpha=0.7, linewidth=3, label='height true')
+            plt.fill_between(x=range(1,37),y1=data_plot2['height_true (cm)'].iloc[144:], color='cornflowerblue', alpha=0.4)
+            plt.plot(data_plot2['height_true (cm)'].iloc[144:], color='cornflowerblue', alpha=0.7, linewidth=3, label='height true')
 
-            plt.fill_between(x=range(1,37),y1=data_plot2['height_pred (cm)'].iloc[288:], color='red', alpha=0.4)
-            plt.plot(data_plot2['height_pred (cm)'].iloc[288:], color='red', alpha=0.7, linewidth=3, label='height pred')
+            plt.fill_between(x=range(1,37),y1=data_plot2['height_pred (cm)'].iloc[144:], color='red', alpha=0.4)
+            plt.plot(data_plot2['height_pred (cm)'].iloc[144:], color='red', alpha=0.7, linewidth=3, label='height pred')
 
-            plt.xlim(-288, 37)
+            plt.xlim(-144, 37)
             plt.ylim(0)
-            plt.xticks((-288,-252,-216,-180,-144,-108,-72,-36,0,36))
+            plt.xticks((-144,-108,-72,-36,0,36))
             plt.ylabel('Height (cm)')
             plt.xlabel('Step (1 step = 10 minutes)')
             plt.title('Flood Prediction Chart for the Next 6 Hours', fontweight='bold', fontsize=16, loc='left', pad=25)
 
-            plt.text(-288, -20, s="Datetime : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -20, s=datetime2, fontsize=6)
-            plt.text(-288, -24, s="Location : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -24, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
+            plt.text(-144, -16, s="Datetime : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -16, s=datetime2, fontsize=6)
+            plt.text(-144, -20, s="Location : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -20, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
 
             plt.legend(frameon=False, loc=(0,1.01), ncol=3)
             sns.despine(left=True, right=True)
@@ -275,23 +267,23 @@ with tab2:
                                                                     pred=y_pred_status)
             
             fig2 = plt.figure(figsize=(10, 4))
-            plt.fill_between(x=range(-287,1),y1=data_plot2['height_history (cm)'].iloc[0:288], color='dimgray', alpha=0.4)
-            plt.plot(data_plot2['height_history (cm)'].iloc[0:288], color='dimgray', alpha=1, linewidth=3, label='height history')
+            plt.fill_between(x=range(-143,1),y1=data_plot2['height_history (cm)'].iloc[0:144], color='dimgray', alpha=0.4)
+            plt.plot(data_plot2['height_history (cm)'].iloc[0:144], color='dimgray', alpha=1, linewidth=3, label='height history')
 
-            plt.fill_between(x=range(1,37),y1=data_plot2['height_pred (cm)'].iloc[288:], color='red', alpha=0.4)
-            plt.plot(data_plot2['height_pred (cm)'].iloc[288:], color='red', alpha=0.7, linewidth=3, label='height pred')
+            plt.fill_between(x=range(1,37),y1=data_plot2['height_pred (cm)'].iloc[144:], color='red', alpha=0.4)
+            plt.plot(data_plot2['height_pred (cm)'].iloc[144:], color='red', alpha=0.7, linewidth=3, label='height pred')
 
-            plt.xlim(-288, 37)
+            plt.xlim(-144, 37)
             plt.ylim(0)
-            plt.xticks((-288,-252,-216,-180,-144,-108,-72,-36,0,36))
+            plt.xticks((-144,-108,-72,-36,0,36))
             plt.ylabel('Height (cm)')
             plt.xlabel('Step (1 step = 10 minutes)')
             plt.title('Flood Prediction Chart for the Next 6 Hours', fontweight='bold', fontsize=16, loc='left', pad=25)
 
-            plt.text(-288, -20, s="Datetime : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -20, s=datetime2, fontsize=6)
-            plt.text(-288, -24, s="Location : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -24, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
+            plt.text(-144, -16, s="Datetime : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -16, s=datetime2, fontsize=6)
+            plt.text(-144, -20, s="Location : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -20, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
 
             plt.legend(frameon=False, loc=(0,1.01), ncol=3)
             sns.despine(left=True, right=True)
@@ -331,9 +323,7 @@ with tab3:
         X_klasifikasi3 = data_banjir.loc[data_banjir['datetime'] == datetime3].reset_index(drop=True)
         X_klasifikasi3 = X_klasifikasi3[['datetime','height (cm)']].rename(columns={'datetime':'date',
                                                                                   'height (cm)':'height'})
-        y_klasifikasi3 = klasifikasi_banjir(X=X_klasifikasi3,
-                                 scaler_X=scaler_X_klasifikasi,
-                                 model=model_klasifikasi_banjir)
+        y_klasifikasi3 = klasifikasi_banjir(X=X_klasifikasi3)
         # prediksi
         X_prediksi3 = get_X_prediksi(data=data_banjir, 
                                 date=datetime3)
@@ -343,13 +333,11 @@ with tab3:
                             scaler_X=scaler_X_prediksi,
                             scaler_y=scaler_y_prediksi,
                             model=model_prediksi_banjir)
-        y_pred_status3 = klasifikasi_banjir(X=y_pred3,
-                                    scaler_X=scaler_X_klasifikasi,
-                                    model=model_klasifikasi_banjir)
+        y_pred_status3 = klasifikasi_banjir(X=y_pred3)
         y_pred_status3 = y_pred_status3.rename(columns = {'height':'height_pred (cm)'})
 
         # message/caption
-        date_info, height_info, status_info, msg_line1, msg_line2 = get_info_banjir3(y_klasifikasi=y_klasifikasi3,
+        date_info, height_info, status_info, msg_line1 = get_info_banjir3(y_klasifikasi=y_klasifikasi3,
                                                                                      y_pred_status=y_pred_status3)
         message = f"""
 ⚠️ *Flood Alert - Prediction info* ⚠️
@@ -361,7 +349,7 @@ Status: {status_info}
 
 Message:
 - {msg_line1}
-- {msg_line2}
+
 
 --------------------------------
 _#StaySafe_
@@ -373,26 +361,26 @@ _#QuakeFloodAlert_"""
                                                                     pred=y_pred_status3)
 
             fig3 = plt.figure(figsize=(10, 4))
-            plt.fill_between(x=range(-287,1),y1=data_plot3['height_history (cm)'].iloc[0:288], color='dimgray', alpha=0.4)
-            plt.plot(data_plot3['height_history (cm)'].iloc[0:288], color='dimgray', alpha=1, linewidth=3, label='height history')
+            plt.fill_between(x=range(-143,1),y1=data_plot3['height_history (cm)'].iloc[0:144], color='dimgray', alpha=0.4)
+            plt.plot(data_plot3['height_history (cm)'].iloc[0:144], color='dimgray', alpha=1, linewidth=3, label='height history')
 
-            plt.fill_between(x=range(1,37),y1=data_plot3['height_true (cm)'].iloc[288:], color='cornflowerblue', alpha=0.4)
-            plt.plot(data_plot3['height_true (cm)'].iloc[288:], color='cornflowerblue', alpha=0.7, linewidth=3, label='height true')
+            plt.fill_between(x=range(1,37),y1=data_plot3['height_true (cm)'].iloc[144:], color='cornflowerblue', alpha=0.4)
+            plt.plot(data_plot3['height_true (cm)'].iloc[144:], color='cornflowerblue', alpha=0.7, linewidth=3, label='height true')
 
-            plt.fill_between(x=range(1,37),y1=data_plot3['height_pred (cm)'].iloc[288:], color='red', alpha=0.4)
-            plt.plot(data_plot3['height_pred (cm)'].iloc[288:], color='red', alpha=0.7, linewidth=3, label='height pred')
+            plt.fill_between(x=range(1,37),y1=data_plot3['height_pred (cm)'].iloc[144:], color='red', alpha=0.4)
+            plt.plot(data_plot3['height_pred (cm)'].iloc[144:], color='red', alpha=0.7, linewidth=3, label='height pred')
 
-            plt.xlim(-288, 37)
+            plt.xlim(-144, 37)
             plt.ylim(0)
-            plt.xticks((-288,-252,-216,-180,-144,-108,-72,-36,0,36))
+            plt.xticks((-144,-108,-72,-36,0,36))
             plt.ylabel('Height (cm)')
             plt.xlabel('Step (1 step = 10 minutes)')
             plt.title('Flood Prediction Chart for the Next 6 Hours', fontweight='bold', fontsize=16, loc='left', pad=25)
 
-            plt.text(-288, -20, s="Datetime : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -20, s=datetime3, fontsize=6)
-            plt.text(-288, -24, s="Location : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -24, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
+            plt.text(-144, -16, s="Datetime : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -16, s=datetime3, fontsize=6)
+            plt.text(-144, -20, s="Location : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -20, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
 
             plt.legend(frameon=False, loc=(0,1.01), ncol=3)
             sns.despine(left=True, right=True)
@@ -402,23 +390,23 @@ _#QuakeFloodAlert_"""
                                                                     pred=y_pred_status3)
             
             fig3 = plt.figure(figsize=(10, 4))
-            plt.fill_between(x=range(-287,1),y1=data_plot3['height_history (cm)'].iloc[0:288], color='dimgray', alpha=0.4)
-            plt.plot(data_plot3['height_history (cm)'].iloc[0:288], color='dimgray', alpha=1, linewidth=3, label='height history')
+            plt.fill_between(x=range(-143,1),y1=data_plot3['height_history (cm)'].iloc[0:144], color='dimgray', alpha=0.4)
+            plt.plot(data_plot3['height_history (cm)'].iloc[0:144], color='dimgray', alpha=1, linewidth=3, label='height history')
 
-            plt.fill_between(x=range(1,37),y1=data_plot3['height_pred (cm)'].iloc[288:], color='red', alpha=0.4)
-            plt.plot(data_plot3['height_pred (cm)'].iloc[288:], color='red', alpha=0.7, linewidth=3, label='height pred')
+            plt.fill_between(x=range(1,37),y1=data_plot3['height_pred (cm)'].iloc[14:], color='red', alpha=0.4)
+            plt.plot(data_plot3['height_pred (cm)'].iloc[144:], color='red', alpha=0.7, linewidth=3, label='height pred')
 
-            plt.xlim(-288, 37)
+            plt.xlim(-144, 37)
             plt.ylim(0)
-            plt.xticks((-288,-252,-216,-180,-144,-108,-72,-36,0,36))
+            plt.xticks((-144,-108,-72,-36,0,36))
             plt.ylabel('Height (cm)')
             plt.xlabel('Step (1 step = 10 minutes)')
             plt.title('Flood Prediction Chart for the Next 6 Hours', fontweight='bold', fontsize=16, loc='left', pad=25)
 
-            plt.text(-288, -20, s="Datetime : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -20, s=datetime3, fontsize=6)
-            plt.text(-288, -24, s="Location : ", fontweight='bold', fontsize=6)
-            plt.text(-270, -24, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
+            plt.text(-144, -16, s="Datetime : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -16, s=datetime3, fontsize=6)
+            plt.text(-144, -20, s="Location : ", fontweight='bold', fontsize=6)
+            plt.text(-126, -20, s="Padang, Indonesia (-0.955531, 100.477179)", fontsize=6)
 
             plt.legend(frameon=False, loc=(0,1.01), ncol=3)
             sns.despine(left=True, right=True)
