@@ -9,7 +9,7 @@ def page_config(title):
     st.set_page_config(page_title=title, page_icon="⚠️")
     hide_st_style = """
             <style>
-            #MainMenu {visibility: hidden;}
+            # MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
 	        header {visibility: hidden;}
             </style>
@@ -22,28 +22,23 @@ def page_config(title):
         st.info("⬆⬆ Pick a menu above! ⬆⬆")
 
 # banjir
-def klasifikasi_banjir(X,scaler_X,model):
-    # scaling
-    X_klasifikasi_scaled = scaler_X.transform(X[['height']])
-    # predict
-    y_klasifikasi = model.predict(X_klasifikasi_scaled,verbose=0)
-    y_klasifikasi = np.argmax(y_klasifikasi, axis=1)
-    # df
-    y_klasifikasi = pd.DataFrame(y_klasifikasi,columns = ['status_pred'])
-    df_klasifikasi = X.join(y_klasifikasi)
+def klasifikasi_banjir(X):
+    X['status_pred'] = np.where(X['height'] < 90, 4, 
+                        np.where(X['height'] < 130, 3, 
+                                 np.where(X['height'] < 160, 2,
+                                          1)))
+    df_klasifikasi = X
     return df_klasifikasi
 
 def get_X_prediksi(data, date):
-    data_history = data.loc[data['datetime'] <= date].head(400).sort_values(by=['datetime']).reset_index(drop=True) # 288+108=396, 400>396
-    data_history['cloudcover_3h (%)'] = data_history['cloudcover (%)'].shift(18)
-    data_history['humidity_18h (%)'] = data_history['humidity (%)'].shift(108)
-    data_history['height_diff_18h (cm)'] = data_history['height (cm)'] - data_history['height (cm)'].shift(108)
-    data_history = data_history.dropna().tail(288).reset_index(drop = True)
+    data_history = data.loc[data['datetime'] <= date].head(260).sort_values(by=['datetime']).reset_index(drop=True) # 144+108=252, 260>252
+    data_history['height_diff_18h (cm)'] = data_history['height (cm)'] - data_history['height (cm)'].shift(108) # ekstraksi fitur
+    data_history = data_history.dropna().tail(144).reset_index(drop = True)
     data_history = data_history[['datetime',
                                  'height (cm)',
+                                 'precip (mm)',
+                                 'visibility (km)',
                                  'windgust (kph)',
-                                 'cloudcover_3h (%)',
-                                 'humidity_18h (%)',
                                  'height_diff_18h (cm)']]
     return data_history
 
@@ -51,20 +46,20 @@ def prediksi_banjir(data, date, X, scaler_X, scaler_y, model):
     # X
     X_prediksi = X.drop(columns=['datetime']).rename(columns={
                                     'height (cm)':'height',
+                                    'precip (mm)' : 'precip',
+                                    'visibility (km)' : 'visibility',
                                     'windgust (kph)':'windgust',
-                                    'cloudcover_3h (%)':'cloudcover_3h',
-                                    'humidity_18h (%)':'humidity_18h',
                                     'height_diff_18h (cm)':'height_diff_18h'})
     # scaling
     X_prediksi_scaled = scaler_X.transform(X_prediksi)
     # reshape 
-    X_prediksi_scaled = X_prediksi_scaled.reshape(1,288,5)
+    X_prediksi_scaled = X_prediksi_scaled.reshape(1,144,5)
     # predict
     y_prediksi = model.predict(X_prediksi_scaled,verbose=0)
     # reshape
     y_prediksi = y_prediksi.reshape(36,1)
     # inverse scaling
-    y_prediksi_inverse = scaler_y.inverse_transform(y_prediksi)
+    y_prediksi_inverse = scaler_y.inverse_transform(y_prediksi).round(2)
     y_prediksi_inverse = pd.DataFrame(y_prediksi_inverse, columns = ['height']) # y_pred
     # DATA FUTURE
     data_future = data.loc[data['datetime'] > date].tail(36).sort_values(by=['datetime']).reset_index(drop=True)# 36=step
@@ -76,7 +71,7 @@ def prediksi_banjir(data, date, X, scaler_X, scaler_y, model):
         df_pred = y_prediksi_inverse
     return df_pred
 
-def get_info_banjir2(y_klasifikasi, y_pred_status):
+def get_info_banjir2(y_klasifikasi, y_pred_status): # informasi prediksi tab 2
     date = y_klasifikasi['date'][0]
     height = y_klasifikasi['height'][0]
     status = y_klasifikasi['status_pred'][0]
@@ -94,138 +89,64 @@ def get_info_banjir2(y_klasifikasi, y_pred_status):
     col_text.write(f': {str(height.round(2))} cm')
 
     # status klasifikasi
-    siaga0 = ':green[SIAGA 0]'
-    siaga1 = ':orange[SIAGA 1]'
-    siaga2 = ':red[SIAGA 2]'
-    aman = ":green[[AMAN]]"
-    waspada = ":orange[[WASPADA]]"
-    bahaya = ":red[[BAHAYA]]"
+    siaga4 = ':green[SIAGA 4]'
+    siaga3 = ':yellow[SIAGA 3]'
+    siaga2 = ':orange[SIAGA 2]'
+    siaga1 = ':red[SIAGA 1]'
+    normal = ':green[NORMAL]'
+    waspada = ':yellow[WASPADA]'
+    siaga = ':orange[SIAGA]'
+    bahaya = ':red[BAHAYA]'
 
-    # kondisi status
-    if status == 0:
-        col_title.write('Status')
-        col_text.write(f': {siaga0}')
+    col_title.write('Status')
+    col_text.write(f': SIAGA {status}')
+
+    y_pred_max = y_pred_status['height_pred (cm)'].max()
+    status_pred_max = y_pred_status['status_pred'].min()
+
+    if status_pred_max == 4:
         col_title.write("Message")
-        if (y_pred_status['status_pred']==0).all():                                                                    # jika semua siaga 0
-            col_text.write(f': {aman} Dalam 6 jam kedepan diperkirakan akan tetap berstatus {siaga0}.')
-            col_text.write('. Tidak akan terjadi banjir.')
-        elif (y_pred_status['status_pred'] == 1).any() and not (y_pred_status['status_pred'] == 2).any():                   # jika ada siaga 1 dan tidak ada siaga 2
-            t_siaga1_start = (y_pred_status[y_pred_status['status_pred'] == 1].index.min()+1) * 10
-            col_text.write(f': {waspada} Dalam {t_siaga1_start} menit kedepan diperkirakan akan berstatus {siaga1}.')
-            col_text.write('. Harap pantau ketinggian air secara berkala.')
-        elif (y_pred_status['status_pred'] == 2).any():                                                                # jika ada siaga 2
-            t_siaga2_start = (y_pred_status[y_pred_status['status_pred'] == 2].index.min()+1) * 10
-            col_text.write(f': {bahaya} Dalam {t_siaga2_start} menit kedepan diperkirakan akan berstatus {siaga2}.')
-            col_text.write('. Berkemungkinan terjadi banjir, segera lakukan evakuasi.')
-        else: col_text.write(': -')
-    
-    elif status == 1:
-        col_title.write('Status')
-        col_text.write(f': {siaga1}')
+        col_text.write(f': {[normal]} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga4})')
+    elif status_pred_max == 3:
         col_title.write("Message")
-        if (y_pred_status['status_pred']==0).all():
-            col_text.write(f': {aman} Dalam 10 menit kedepan diperkirakan akan berstatus {siaga0}.')
-            col_text.write('. Tidak akan terjadi banjir.')
-        elif (y_pred_status['status_pred']==0).any() and not (y_pred_status['status_pred'] == 2).any():
-            t_siaga1_end = (y_pred_status[y_pred_status['status_pred'] == 1].index.max()+2) * 10
-            col_text.write(f': {aman} Dalam {t_siaga1_end} menit kedepan diperkirakan akan berstatus {siaga0}.')
-            col_text.write('. Tidak akan terjadi banjir.')
-        elif (y_pred_status['status_pred']==1).all():
-            col_text.write(f': {waspada} Dalam 6 jam kedepan diperkirakan akan tetap berstatus {siaga1}.')
-            col_text.write('. Harap pantau ketinggian air secara berkala.')
-        elif (y_pred_status['status_pred']==2).any():
-            t_siaga2_start = (y_pred_status[y_pred_status['status_pred'] == 2].index.min()+1) * 10
-            col_text.write(f': {bahaya} Dalam {t_siaga2_start} menit kedepan diperkirakan akan berstatus {siaga2}.')
-            col_text.write('. Berkemungkinan terjadi banjir, segera lakukan evakuasi.')
-        else: col_text.write(': -')
-        
-    elif status == 2:
-        col_title.write('Status')
-        col_text.write(f': {siaga2}')
+        col_text.write(f': {[waspada]} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga3})')
+    elif status_pred_max == 2:
         col_title.write("Message")
-        if not (y_pred_status['status_pred']==2).any():
-            col_text.write(f': {waspada} Dalam 10 menit kedepan diperkirakan status {siaga2} akan berakhir.')
-            col_text.write('. Harap pantau ketinggian air secara berkala.')
-        elif (y_pred_status['status_pred']==2).any() and not (y_pred_status['status_pred']==2).all():
-            t_siaga2_end = (y_pred_status[y_pred_status['status_pred'] == 2].index.max()+2) * 10
-            col_text.write(f': {bahaya} Dalam {t_siaga2_end} menit kedepan diperkirakan masih berstatus {siaga2}.')
-            col_text.write('. Berkemungkinan terjadi banjir, segera lakukan evakuasi.')
-        elif (y_pred_status['status_pred']==2).all():
-            col_text.write(f': {bahaya} Dalam 6 jam kedepan diperkirakan akan tetap berstatus {siaga2}.')
-            col_text.write('. Berkemungkinan terjadi banjir, segera lakukan evakuasi.')
-        else: col_text.write(': -')
+        col_text.write(f': {[siaga]} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga2})')
+    elif status_pred_max == 1:
+        col_title.write("Message")
+        col_text.write(f': {[bahaya]} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga1})')
+             
 
 def get_info_banjir3(y_klasifikasi, y_pred_status):
     date = y_klasifikasi['date'][0] # info datetime
     height = y_klasifikasi['height'][0] # info height
     status = y_klasifikasi['status_pred'][0]
-    
+    status_siaga = f"SIAGA {status}"
+
     # status klasifikasi
-    siaga0 = 'SIAGA 0'
     siaga1 = 'SIAGA 1'
     siaga2 = 'SIAGA 2'
-    aman = "*[AMAN]*"
+    siaga3 = 'SIAGA 3'
+    siaga4 = 'SIAGA 4'   
+    normal = "*[NORMAL]*"
     waspada = "*[WASPADA]*"
+    siaga = "*[SIAGA]*"
     bahaya = "*[BAHAYA]*"
 
-    # kondisi status
-    if status == 0:
-        status_siaga = siaga0 # info status siaga
-        # info message
-        if (y_pred_status['status_pred']==0).all(): 
-            msg_line1 = f"{aman} Dalam 6 jam kedepan diperkirakan akan tetap berstatus {siaga0}"    
-            msg_line2 = "Tidak akan terjadi banjir"
-        elif (y_pred_status['status_pred'] == 1).any() and not (y_pred_status['status_pred'] == 2).any():                   
-            t_siaga1_start = (y_pred_status[y_pred_status['status_pred'] == 1].index.min()+1) * 10
-            msg_line1 = f'{waspada} Dalam {t_siaga1_start} menit kedepan diperkirakan akan berstatus {siaga1}'
-            msg_line2 = 'Harap pantau ketinggian air secara berkala'
-        elif (y_pred_status['status_pred'] == 2).any():                                                                
-            t_siaga2_start = (y_pred_status[y_pred_status['status_pred'] == 2].index.min()+1) * 10
-            msg_line1 = f'{bahaya} Dalam {t_siaga2_start} menit kedepan diperkirakan akan berstatus {siaga2}'
-            msg_line2 = 'Berkemungkinan terjadi banjir, segera lakukan evakuasi'
-        else: 
-            msg_line1 = ". . ."
-            msg_line2 = ". . ."
+    y_pred_max = (y_pred_status['height_pred (cm)'].max()).round(2)
+    status_pred_max = y_pred_status['status_pred'].min()
+
+    if status_pred_max == 4:
+        msg_line1 = f"{normal} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga4})"
+    elif status_pred_max == 3:
+        msg_line1 = f"{waspada} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga3})"
+    elif status_pred_max == 2:
+        msg_line1 = f"{siaga} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga2})"
+    elif status_pred_max == 1:
+        msg_line1 = f"{bahaya} Diprediksi ketinggian air maksimal dalam 6 jam ke depan adalah {y_pred_max:.2f} cm ({siaga1})"
     
-    elif status == 1:
-        status_siaga = siaga1 # info status siaga
-        # info message
-        if (y_pred_status['status_pred']==0).all():
-            msg_line1 = f'{aman} Dalam 10 menit kedepan diperkirakan akan berstatus {siaga0}'
-            msg_line2 = 'Tidak akan terjadi banjir'
-        elif (y_pred_status['status_pred']==0).any() and not (y_pred_status['status_pred'] == 2).any():
-            t_siaga1_end = (y_pred_status[y_pred_status['status_pred'] == 1].index.max()+2) * 10
-            msg_line1 = f'{aman} Dalam {t_siaga1_end} menit kedepan diperkirakan akan berstatus {siaga0}'
-            msg_line2 = 'Tidak akan terjadi banjir'
-        elif (y_pred_status['status_pred']==1).all():
-            msg_line1 = f'{waspada} Dalam 6 jam kedepan diperkirakan akan tetap berstatus {siaga1}'
-            msg_line2 = 'Harap pantau ketinggian air secara berkala'
-        elif (y_pred_status['status_pred']==2).any():
-            t_siaga2_start = (y_pred_status[y_pred_status['status_pred'] == 2].index.min()+1) * 10
-            msg_line1 = f'{bahaya} Dalam {t_siaga2_start} menit kedepan diperkirakan akan berstatus {siaga2}'
-            msg_line2 = 'Berkemungkinan terjadi banjir, segera lakukan evakuasi'
-        else: 
-            msg_line1 = ". . ."
-            msg_line2 = ". . ."
-        
-    elif status == 2:
-        status_siaga = siaga2 # info status siaga
-        # info message
-        if not (y_pred_status['status_pred']==2).any():
-            msg_line1 = f'{waspada} Dalam 10 menit kedepan diperkirakan status {siaga2} akan berakhir'
-            msg_line2 = 'Harap pantau ketinggian air secara berkala'
-        elif (y_pred_status['status_pred']==2).any() and not (y_pred_status['status_pred']==2).all():
-            t_siaga2_end = (y_pred_status[y_pred_status['status_pred'] == 2].index.max()+2) * 10
-            msg_line1 = f'{bahaya} Dalam {t_siaga2_end} menit kedepan diperkirakan masih berstatus {siaga2}'
-            msg_line2 = 'Berkemungkinan terjadi banjir, segera lakukan evakuasi'
-        elif (y_pred_status['status_pred']==2).all():
-            msg_line1 = f'{bahaya} Dalam 6 jam kedepan diperkirakan akan tetap berstatus {siaga2}'
-            msg_line2 = 'Berkemungkinan terjadi banjir, segera lakukan evakuasi'
-        else: 
-            msg_line1 = ". . ."
-            msg_line2 = ". . ."
-    
-    return date, height, status_siaga, msg_line1, msg_line2
+    return date, height, status_siaga, msg_line1
 
 
 # gempa
